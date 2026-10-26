@@ -1,0 +1,6 @@
+{
+  "name": "We Connect Dating",
+  "description": "Authentic dating and cultural matchmaking for Sierra Leoneans at home and across the diaspora featuring verified profiles, private messaging, and virtual video dates.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
