@@ -68,7 +68,9 @@ export interface CulturalHeritage {
 export interface UserProfile {
   id: string;
   name: string;
+  username: string; // Unique handle e.g. @isatu_cole (alphanumeric & underscores)
   age: number;
+  dateOfBirth?: string; // YYYY-MM-DD
   gender: Gender;
   seeking: Seeking;
   locationCity: string;
@@ -86,8 +88,14 @@ export interface UserProfile {
   photos: string[]; // Up to 10 photos
   isVerified: boolean;
   verificationBadgeType: 'photo_pose' | 'government_id' | 'none';
+  livenessVerified?: boolean; // 3D depth & active micro-expression check passed
+  otpVerified?: boolean; // SMS / Email 6-digit OTP verified
+  isPhoneVerified?: boolean;
+  isEmailVerified?: boolean;
   culturalHeritage: CulturalHeritage;
   relationshipGoal: RelationshipGoal;
+  looking_for?: string; // Formatted label: 'Long-term partner', 'Casual dating', 'Friends first', etc.
+  discovery_tags?: string[]; // Discovery tabs: 'For you', 'Double Date', 'Astrology', 'Homecoming'
   interests: string[];
   footballClub?: string;
   childrenStatus?: ChildrenStatus;
@@ -105,6 +113,26 @@ export interface UserProfile {
   isMatch?: boolean;
   isLockedMatch?: boolean; // Locked Secret Match Mechanic
   hasLikedCurrentUser?: boolean;
+}
+
+export type SwipeAction = 'rewind' | 'pass' | 'super_like' | 'like' | 'direct_message';
+
+export interface SwipeResponsePayload {
+  success: boolean;
+  action: SwipeAction;
+  is_match: boolean;
+  match_data?: {
+    match_id: string;
+    matched_user: {
+      id: string;
+      name: string;
+      photos: string[];
+    };
+  };
+  navigation_badges: {
+    likes_count: number;
+    unread_chats_count: number;
+  };
 }
 
 export interface ChatEscrow {

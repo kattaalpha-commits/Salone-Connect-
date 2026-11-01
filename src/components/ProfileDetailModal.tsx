@@ -144,9 +144,14 @@ export const ProfileDetailModal: React.FC<ProfileDetailModalProps> = ({
               )}
             </div>
 
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 flex-wrap">
               <h2 className="text-3xl font-extrabold text-white tracking-tight">{profile.name}</h2>
-              <span className="text-2xl font-light text-slate-300">{profile.age}</span>
+              <span className="text-2xl font-light text-rose-200">{profile.age}</span>
+              {profile.username && (
+                <span className="text-sm font-mono text-rose-300 font-semibold px-2 py-0.5 rounded-md bg-rose-950/60 border border-rose-500/30">
+                  @{profile.username}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-300 font-medium mt-1">

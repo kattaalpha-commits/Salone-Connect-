@@ -1,0 +1,237 @@
+// ============================================================================
+// SALONE CONNECT DATING - PRISMA SCHEMA DEFINITION
+// ============================================================================
+// Supports:
+//  - Multi-photo pagination feed
+//  - Looking_for relationship intention label & discovery category tags
+//  - 5 Swipe Actions: REWIND, PASS, SUPER_LIKE, LIKE, DIRECT_MESSAGE
+//  - Matchmaking, Real-time messaging, and safety blocks/reports
+// ============================================================================
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Gender {
+  MAN
+  WOMAN
+  NON_BINARY
+}
+
+enum Seeking {
+  MEN
+  WOMEN
+  EVERYONE
+}
+
+enum SwipeAction {
+  REWIND
+  PASS
+  SUPER_LIKE
+  LIKE
+  DIRECT_MESSAGE
+}
+
+enum RelationshipGoal {
+  FRIENDSHIP
+  LONG_TERM
+  SHORT_TERM
+  MARRIAGE
+  CASUAL
+}
+
+enum VerificationBadge {
+  NONE
+  PHOTO_POSE
+  LIVENESS_3D
+  GOVERNMENT_ID
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VOICE_NOTE
+  VIEW_ONCE
+  ESCROW_PILL
+}
+
+enum ReportReason {
+  IMPERSONATION
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  SCAM
+  UNDERAGE
+  OTHER
+}
+
+model User {
+  id                String       @id @default(uuid())
+  email             String?      @unique
+  phoneNumber       String?      @unique @map("phone_number")
+  passwordHash      String?      @map("password_hash")
+  isActive          Boolean      @default(true) @map("is_active")
+  isPhoneVerified   Boolean      @default(false) @map("is_phone_verified")
+  isEmailVerified   Boolean      @default(false) @map("is_email_verified")
+  isBanned          Boolean      @default(false) @map("is_banned")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  profile           Profile?
+  swipesSent        Swipe[]      @relation("SwipesSent")
+  swipesReceived    Swipe[]      @relation("SwipesReceived")
+  matchesAsUser1    Match[]      @relation("User1Matches")
+  matchesAsUser2    Match[]      @relation("User2Matches")
+  messagesSent      Message[]    @relation("MessagesSent")
+  messagesReceived  Message[]    @relation("MessagesReceived")
+  blocksInitiated   UserBlock[]  @relation("BlocksInitiated")
+  blocksReceived    UserBlock[]  @relation("BlocksReceived")
+  reportsFiled      SafetyReport[] @relation("ReportsFiled")
+  reportsReceived   SafetyReport[] @relation("ReportsReceived")
+
+  @@map("users")
+}
+
+model Profile {
+  userId               String            @id @map("user_id")
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username             String            @unique
+  fullName             String            @map("full_name")
+  dateOfBirth          DateTime          @map("date_of_birth") @db.Date
+  gender               Gender
+  seeking              Seeking           @default(EVERYONE)
+  bio                  String?           @db.VarChar(1000)
+  profession           String?
+  company              String?
+  schoolOrUniversity   String?           @map("school_or_university")
+  religion             String?
+  district             String            @default("Western Area Urban (Freetown)")
+  locationCity         String            @default("Freetown") @map("location_city")
+  locationCountry      String            @default("Sierra Leone") @map("location_country")
+  
+  // Coordinates (Latitude and Longitude for PostGIS geography)
+  latitude             Float?
+  longitude            Float?
+  maxDistanceKm        Int               @default(100) @map("max_distance_km")
+
+  // Multi-photo URLs for top dashed indicator
+  photos               String[]          @default([])
+  isVerified           Boolean           @default(false) @map("is_verified")
+  verificationType     VerificationBadge @default(NONE) @map("verification_type")
+  livenessVerified     Boolean           @default(false) @map("liveness_verified")
+
+  // Intention & Discovery Tags
+  relationshipGoal     RelationshipGoal  @default(FRIENDSHIP) @map("relationship_goal")
+  lookingFor           String            @default("Friends first") @map("looking_for")
+  discoveryTags        String[]          @default(["For you"]) @map("discovery_tags")
+
+  // Cultural Anchors
+  dialects             String[]          @default(["Krio", "English"])
+  favoriteDish         String            @default("Cassava Leaf & Rice") @map("favorite_dish")
+  weekendVibe          String            @default("Lion Mountains Peak Views") @map("weekend_vibe")
+  footballClub         String            @default("Arsenal") @map("football_club")
+
+  isPremium            Boolean           @default(false) @map("is_premium")
+  isSpotlight          Boolean           @default(false) @map("is_spotlight")
+  lastActiveAt         DateTime          @default(now()) @map("last_active_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  @@index([gender, seeking])
+  @@index([district])
+  @@index([lastActiveAt(sort: Desc)])
+  @@map("profiles")
+}
+
+model Swipe {
+  id         BigInt      @id @default(autoincrement())
+  swiperId   String      @map("swiper_id")
+  targetId   String      @map("target_id")
+  action     SwipeAction
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  swiper     User        @relation("SwipesSent", fields: [swiperId], references: [id], onDelete: Cascade)
+  target     User        @relation("SwipesReceived", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([swiperId, targetId])
+  @@index([targetId, action])
+  @@map("swipes")
+}
+
+model Match {
+  id                 String     @id @default(uuid())
+  user1Id            String     @map("user1_id")
+  user2Id            String     @map("user2_id")
+  isActive           Boolean    @default(true) @map("is_active")
+  lastMessageAt      DateTime?  @map("last_message_at")
+  lastMessagePreview String?    @map("last_message_preview")
+  createdAt          DateTime   @default(now()) @map("created_at")
+
+  user1              User       @relation("User1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2              User       @relation("User2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages           Message[]
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id, isActive])
+  @@index([user2Id, isActive])
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("matches")
+}
+
+model Message {
+  id               String      @id @default(uuid())
+  matchId          String      @map("match_id")
+  senderId         String      @map("sender_id")
+  receiverId       String      @map("receiver_id")
+  content          String
+  msgType          MessageType @default(TEXT) @map("msg_type")
+  mediaUrl         String?     @map("media_url")
+  isViewOnce       Boolean     @default(false) @map("is_view_once")
+  isViewOnceOpened Boolean     @default(false) @map("is_view_once_opened")
+  isRead           Boolean     @default(false) @map("is_read")
+  readAt           DateTime?   @map("read_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  match            Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender           User        @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver         User        @relation("MessagesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt(sort: Desc)])
+  @@index([receiverId, isRead])
+  @@map("messages")
+}
+
+model UserBlock {
+  id         BigInt   @id @default(autoincrement())
+  blockerId  String   @map("blocker_id")
+  blockedId  String   @map("blocked_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  blocker    User     @relation("BlocksInitiated", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked    User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("user_blocks")
+}
+
+model SafetyReport {
+  id              String       @id @default(uuid())
+  reporterId      String?      @map("reporter_id")
+  targetId        String       @map("target_id")
+  reason          ReportReason
+  details         String
+  status          String       @default("pending")
+  resolutionNotes String?      @map("resolution_notes")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  resolvedAt      DateTime?    @map("resolved_at")
+
+  reporter        User?        @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: SetNull)
+  target          User         @relation("ReportsReceived", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("safety_reports")
+}

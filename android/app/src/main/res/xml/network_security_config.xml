@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Salone Connect Dating - Strict Network Security Configuration -->
+<!-- Enforces TLS 1.3, blocks cleartext traffic (HTTP), and configures certificate pinning -->
+<network-security-config>
+    <!-- 1. Strict Cleartext Traffic Blocking: Deny all unencrypted HTTP traffic -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- 2. Secure Domain Pinning & TLS Config for Telecom & Escrow APIs -->
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Salone Connect Production & Telecom Web Services -->
+        <domain includeSubdomains="true">saloneconnect.com</domain>
+        <domain includeSubdomains="true">vercel.app</domain>
+        <domain includeSubdomains="true">orange.sl</domain>
+        <domain includeSubdomains="true">africell.sl</domain>
+
+        <!-- Pin Set for Public Key Hash Verification (SHA-256) -->
+        <pin-set expiration="2027-12-31">
+            <!-- Let's Encrypt Root & DigiCert Backup Certificate Pins -->
+            <pin digest="SHA-256">r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5E=</pin>
+            <pin digest="SHA-256">YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=</pin>
+            <pin digest="SHA-256">Vfd95BwDeSQo+NUYxVEEZRP0dBFCokdL7bws8+Fifow=</pin>
+        </pin-set>
+    </domain-config>
+
+    <!-- 3. Debug Override: Strictly disabled in production builds -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

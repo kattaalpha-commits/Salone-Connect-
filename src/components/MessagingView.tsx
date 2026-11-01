@@ -362,10 +362,13 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
                 </div>
 
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="font-bold text-sm text-white">{activeMatch.name}</h4>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h4 className="font-bold text-sm text-white">{activeMatch.name}, {activeMatch.age}</h4>
+                    {activeMatch.username && (
+                      <span className="text-[11px] font-mono text-rose-300 font-medium">@{activeMatch.username}</span>
+                    )}
                     {activeMatch.isVerified && (
-                      <span className="text-emerald-400 text-xs flex items-center gap-0.5">
+                      <span className="text-emerald-400 text-xs flex items-center gap-0.5" title="3D Liveness Verified">
                         <ShieldCheck className="w-3.5 h-3.5" />
                       </span>
                     )}

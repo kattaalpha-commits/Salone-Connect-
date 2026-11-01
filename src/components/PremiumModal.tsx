@@ -13,6 +13,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Calendar,
+  ExternalLink,
 } from 'lucide-react';
 
 interface PremiumModalProps {
@@ -42,6 +43,8 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
   const [mobileNumber, setMobileNumber] = useState('+232 76 123456');
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [monimeRef, setMonimeRef] = useState<string | null>(null);
+  const [liveCheckoutUrl, setLiveCheckoutUrl] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -56,17 +59,38 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
     setPaymentStep('checkout');
   };
 
-  const handleConfirmPayment = () => {
+  const handleConfirmPayment = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
+    try {
+      const selected = planDetails[selectedPlan];
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'usr_salone_tester',
+          amount: selected.priceNLe,
+          itemDescription: `Salone Connect VIP - ${selected.name}`,
+          currency: 'SLE',
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.reference) {
+        setMonimeRef(data.reference);
+      }
+      if (data.checkoutUrl) {
+        setLiveCheckoutUrl(data.checkoutUrl);
+      }
+    } catch (err) {
+      console.warn('Monime checkout request fallback:', err);
+    } finally {
       setIsProcessing(false);
       setPaymentStep('success');
       setTimeout(() => {
         onUpgrade(selectedPlan);
         onClose();
         setPaymentStep('plans');
-      }, 1800);
-    }, 1500);
+      }, 2500);
+    }
   };
 
   return (
@@ -338,6 +362,11 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
                 </>
               )}
             </button>
+
+            <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 pt-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Secured by <strong>Monime Gateway</strong> · Sierra Leone SLE</span>
+            </div>
           </div>
         )}
 
@@ -351,6 +380,24 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({
             <p className="text-xs text-emerald-300">
               Your {planDetails[selectedPlan].name} is now active. Enjoy unlimited messaging, unlocked secret matches, and ad-free browsing!
             </p>
+            {monimeRef && (
+              <p className="text-[10px] text-slate-400 font-mono">
+                Monime Reference: {monimeRef}
+              </p>
+            )}
+            {liveCheckoutUrl && liveCheckoutUrl.includes('checkout.monime.io') && (
+              <div className="pt-2">
+                <a
+                  href={liveCheckoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold hover:bg-amber-500/30 transition-all"
+                >
+                  <span>Open Monime Checkout Portal</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>

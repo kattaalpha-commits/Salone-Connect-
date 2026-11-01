@@ -123,10 +123,15 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-white truncate">{currentUser.name}</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-lg font-bold text-white truncate">{currentUser.name}, {currentUser.age}</h3>
+              {currentUser.username && (
+                <span className="text-xs font-mono text-rose-400 font-semibold px-2 py-0.5 rounded-md bg-rose-950/60 border border-rose-500/30">
+                  @{currentUser.username}
+                </span>
+              )}
               {currentUser.isVerified && (
-                <span className="p-0.5 rounded-full bg-emerald-500 text-white" title="Photo-Verified">
+                <span className="p-0.5 rounded-full bg-emerald-500 text-white" title="3D Liveness & Photo-Verified">
                   <ShieldCheck className="w-4 h-4" />
                 </span>
               )}
@@ -137,10 +142,16 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-400">{currentUser.locationCity}, {currentUser.locationCountry}</p>
-            <div className="flex items-center gap-2 text-[11px] text-emerald-400 mt-0.5">
+            <div className="flex items-center gap-2 text-[11px] text-rose-300 mt-0.5">
               <span>Goal: {currentUser.relationshipGoal}</span>
               <span>·</span>
               <span>{photos.length}/10 Photos</span>
+              {currentUser.otpVerified && (
+                <>
+                  <span>·</span>
+                  <span className="text-emerald-400 font-medium">OTP Verified ✓</span>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -60,6 +60,8 @@ import {
   AlertTriangle,
   Smartphone,
   Share2,
+  Zap,
+  Compass,
 } from 'lucide-react';
 
 const MAX_FREE_SWIPES_PER_DAY = 10;
@@ -194,6 +196,7 @@ export default function App() {
 
   // 2. Navigation State
   const [activeTab, setActiveTab] = useState<'discover' | 'messages' | 'likes' | 'safety'>('discover');
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState<'For you' | 'Double Date' | 'Astrology' | 'Homecoming'>('For you');
   const [activeChatMatch, setActiveChatMatch] = useState<UserProfile | null>(null);
 
   // 3. Modals State
@@ -295,6 +298,14 @@ export default function App() {
 
     if (filters.dishes.length > 0) {
       if (!filters.dishes.includes(p.culturalHeritage.favoriteDish)) return false;
+    }
+
+    if (selectedCategoryTab === 'Double Date') {
+      if (!p.discovery_tags?.includes('Double Date')) return false;
+    } else if (selectedCategoryTab === 'Astrology') {
+      if (!p.discovery_tags?.includes('Astrology')) return false;
+    } else if (selectedCategoryTab === 'Homecoming') {
+      if (!p.homecoming?.isPlanningTrip && !p.discovery_tags?.includes('Homecoming')) return false;
     }
 
     return true;
@@ -416,6 +427,17 @@ export default function App() {
       const lastPassed = passedUserIds[passedUserIds.length - 1];
       setPassedUserIds((prev) => prev.filter((id) => id !== lastPassed));
     }
+  };
+
+  const handleDirectMessage = (targetProfile?: UserProfile) => {
+    const profileToMessage = targetProfile || currentProfile;
+    if (!profileToMessage) return;
+
+    if (!likedUserIds.includes(profileToMessage.id)) {
+      setLikedUserIds((prev) => [...prev, profileToMessage.id]);
+    }
+    setActiveChatMatch(profileToMessage);
+    setActiveTab('messages');
   };
 
   // Messaging with Escrow, View-Once & Screenshot detection
@@ -603,13 +625,13 @@ export default function App() {
               }}
               className="text-lg sm:text-xl font-black tracking-tight text-white whitespace-nowrap shrink-0 flex items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-400 flex items-center justify-center text-white shadow-md">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 via-rose-500 to-amber-400 flex items-center justify-center text-white shadow-md">
                 <Mountain className="w-4 h-4 fill-current" />
               </div>
               <span className="flex items-center gap-1.5">
                 <span>Salone Connect</span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hidden sm:inline">
-                  Lion Mountains
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 hidden sm:inline">
+                  Lion Mountains Romance
                 </span>
               </span>
             </a>
@@ -619,37 +641,37 @@ export default function App() {
           <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-medium text-slate-300">
             <button
               onClick={() => setActiveTab('discover')}
-              className={`hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'discover' ? 'text-emerald-400 font-semibold' : ''
+              className={`hover:text-rose-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                activeTab === 'discover' ? 'text-rose-400 font-semibold drop-shadow' : ''
               }`}
             >
               <Flame className="w-4 h-4" /> Discover
             </button>
             <button
               onClick={() => setActiveTab('messages')}
-              className={`hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'messages' ? 'text-emerald-400 font-semibold' : ''
+              className={`hover:text-rose-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                activeTab === 'messages' ? 'text-rose-400 font-semibold drop-shadow' : ''
               }`}
             >
               <MessageCircle className="w-4 h-4" /> Chats ({matches.length})
             </button>
             <button
               onClick={() => setActiveTab('likes')}
-              className={`hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                activeTab === 'likes' ? 'text-emerald-400 font-semibold' : ''
+              className={`hover:text-rose-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                activeTab === 'likes' ? 'text-rose-400 font-semibold drop-shadow' : ''
               }`}
             >
               <Heart className="w-4 h-4" /> Admirers ({admirers.length})
             </button>
             <button
               onClick={() => setIsFiltersOpen(true)}
-              className="hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+              className="hover:text-rose-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <SlidersHorizontal className="w-4 h-4" /> Discovery Filters
             </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="hover:text-emerald-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+              className="hover:text-rose-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <User className="w-4 h-4" /> My Profile
             </button>
@@ -777,42 +799,51 @@ export default function App() {
       <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full p-3 sm:p-6 pb-28 md:pb-8 flex flex-col justify-center">
         {/* TAB 1: DISCOVER FEED */}
         {activeTab === 'discover' && (
-          <div className="w-full max-w-md mx-auto space-y-4">
-            {/* Filter Pill Controls Bar */}
-            <div className="flex items-center justify-between text-xs px-2">
-              <div className="flex items-center gap-2 text-slate-400">
-                <span className="font-semibold text-white">
-                  {filters.region === 'all'
-                    ? 'All 16 Districts & Diaspora'
-                    : filters.region === 'freetown'
-                    ? 'Freetown & Western Area'
-                    : filters.region === 'provinces'
-                    ? 'Provinces (Bo, Makeni, etc)'
-                    : `${filters.region.toUpperCase()} Diaspora`}
-                </span>
-                <span className="text-slate-600">·</span>
-                <span>{availableDiscoveryProfiles.length} Profiles</span>
+          <div className="w-full max-w-md mx-auto space-y-3">
+            {/* Top Bar: Left filter icon, Horizontal scrollable tabs, Right lightning bolt */}
+            <div className="flex items-center justify-between gap-2 px-1">
+              {/* Left Filter Icon */}
+              <button
+                onClick={() => setIsFiltersOpen(true)}
+                className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 hover:border-rose-500/50 flex items-center justify-center text-slate-300 hover:text-white transition-all shrink-0 active:scale-95"
+                title="Filters"
+                aria-label="Open Filters"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-rose-400" />
+              </button>
+
+              {/* Horizontal Scrollable Tab Selector */}
+              <div className="flex-1 overflow-x-auto no-scrollbar flex items-center gap-1.5 py-1 px-1">
+                {(['For you', 'Double Date', 'Astrology', 'Homecoming'] as const).map((tabName) => {
+                  const isSelected = selectedCategoryTab === tabName;
+                  return (
+                    <button
+                      key={tabName}
+                      onClick={() => setSelectedCategoryTab(tabName)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                        isSelected
+                          ? 'bg-rose-600 text-white shadow-md shadow-rose-950/50 scale-102'
+                          : 'bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                      }`}
+                    >
+                      {tabName}
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleRewind}
-                  className={`flex items-center gap-1 text-slate-400 hover:text-white transition-colors ${
-                    !isVip ? 'opacity-70' : ''
-                  }`}
-                  title="Rewind last pass"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">Rewind</span>
-                </button>
-                <button
-                  onClick={() => setIsFiltersOpen(true)}
-                  className="flex items-center gap-1 text-emerald-400 hover:underline font-semibold"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>Filter</span>
-                </button>
-              </div>
+              {/* Top-Right Action Icon: Lightning Bolt (Boost) */}
+              <button
+                onClick={() => {
+                  setCurrentUser((prev) => ({ ...prev, isSpotlight: true }));
+                  alert('Spotlight Boost activated! Your profile will receive 5x priority placement for the next 30 minutes.');
+                }}
+                className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500/20 to-rose-500/20 border border-amber-500/40 hover:border-amber-400 flex items-center justify-center text-amber-400 hover:text-amber-300 transition-all shrink-0 active:scale-95 shadow"
+                title="Lightning Boost (Padi Boost)"
+                aria-label="Boost profile"
+              >
+                <Zap className="w-4 h-4 fill-amber-400" />
+              </button>
             </div>
 
             {/* Free Tier Trials Warning */}
@@ -852,9 +883,11 @@ export default function App() {
               <DiscoveryCard
                 profile={currentProfile}
                 culturalScore={calculateCulturalMatch(currentUser, currentProfile)}
-                onLike={() => handleLike()}
+                onRewind={handleRewind}
                 onPass={() => handlePass()}
                 onSuperLike={handleSuperLike}
+                onLike={() => handleLike()}
+                onDirectMessage={() => handleDirectMessage()}
                 onOpenDetails={() => setSelectedProfileForDetails(currentProfile)}
                 remainingTrials={!isVip ? remainingDailySwipes : undefined}
               />
@@ -995,52 +1028,68 @@ export default function App() {
         )}
       </main>
 
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-800 h-16 pb-safe grid grid-cols-5 items-center px-1">
+      {/* MOBILE BOTTOM NAVIGATION BAR: 5 Tabs matching specification */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-[#17020a]/95 via-slate-950/95 to-[#17020a]/95 backdrop-blur-md border-t border-rose-900/30 h-16 pb-safe grid grid-cols-5 items-center px-1">
+        {/* 1. Swipe (Flame) */}
         <button
           onClick={() => setActiveTab('discover')}
           className={`flex flex-col items-center justify-center h-full min-h-[44px] ${
-            activeTab === 'discover' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+            activeTab === 'discover' ? 'text-rose-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
           <Flame className="w-5 h-5" />
-          <span className="text-[10px] font-medium tracking-tight mt-1">Discover</span>
+          <span className="text-[10px] font-medium tracking-tight mt-1">Swipe</span>
         </button>
 
+        {/* 2. Explore (Compass) */}
+        <button
+          onClick={() => setIsFiltersOpen(true)}
+          className="flex flex-col items-center justify-center h-full min-h-[44px] text-slate-400 hover:text-white active:scale-95 transition-transform"
+        >
+          <Compass className="w-5 h-5 text-slate-400 hover:text-rose-400" />
+          <span className="text-[10px] font-medium tracking-tight mt-1">Explore</span>
+        </button>
+
+        {/* 3. Likes (Heart with red counter badge) */}
+        <button
+          onClick={() => setActiveTab('likes')}
+          className={`flex flex-col items-center justify-center h-full min-h-[44px] relative ${
+            activeTab === 'likes' ? 'text-rose-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <div className="relative">
+            <Heart className="w-5 h-5" />
+            {admirers.length > 0 && (
+              <span className="absolute -top-1.5 -right-2 px-1 py-0.2 bg-rose-600 text-white text-[9px] font-bold rounded-full min-w-4 text-center shadow">
+                {admirers.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-medium tracking-tight mt-1">Likes</span>
+        </button>
+
+        {/* 4. Chat (MessageCircle with unread badge) */}
         <button
           onClick={() => setActiveTab('messages')}
           className={`flex flex-col items-center justify-center h-full min-h-[44px] relative ${
-            activeTab === 'messages' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+            activeTab === 'messages' ? 'text-rose-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
         >
-          <MessageCircle className="w-5 h-5" />
-          {matches.length > 0 && (
-            <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-emerald-500" />
-          )}
-          <span className="text-[10px] font-medium tracking-tight mt-1">Chats</span>
+          <div className="relative">
+            <MessageCircle className="w-5 h-5" />
+            {matches.length > 0 && (
+              <span className="absolute -top-1.5 -right-2 px-1 py-0.2 bg-rose-600 text-white text-[9px] font-bold rounded-full min-w-4 text-center shadow">
+                {matches.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-medium tracking-tight mt-1">Chat</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('likes')}
-          className={`flex flex-col items-center justify-center h-full min-h-[44px] ${
-            activeTab === 'likes' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Heart className="w-5 h-5" />
-          <span className="text-[10px] font-medium tracking-tight mt-1">Admirers</span>
-        </button>
-
-        <button
-          onClick={() => setIsShareOpen(true)}
-          className="flex flex-col items-center justify-center h-full min-h-[44px] text-emerald-400 hover:text-emerald-300 active:scale-95 transition-transform"
-        >
-          <Share2 className="w-5 h-5" />
-          <span className="text-[10px] font-bold tracking-tight mt-1">Share</span>
-        </button>
-
+        {/* 5. Profile (User avatar) */}
         <button
           onClick={() => setIsSettingsOpen(true)}
-          className="flex flex-col items-center justify-center h-full min-h-[44px] text-slate-400 hover:text-white"
+          className="flex flex-col items-center justify-center h-full min-h-[44px] text-slate-400 hover:text-white active:scale-95 transition-transform"
         >
           <User className="w-5 h-5" />
           <span className="text-[10px] font-medium tracking-tight mt-1">Profile</span>

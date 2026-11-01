@@ -7,13 +7,10 @@ import {
   Heart,
   X,
   Star,
+  RotateCcw,
+  Send,
+  Search,
   Info,
-  Utensils,
-  Languages,
-  ChevronLeft,
-  ChevronRight,
-  BookOpen,
-  GraduationCap,
   ExternalLink,
 } from 'lucide-react';
 
@@ -21,9 +18,11 @@ interface DiscoveryCardProps {
   profile?: UserProfile;
   sponsoredCard?: SponsoredProfileCard;
   culturalScore?: number;
-  onLike?: () => void;
+  onRewind?: () => void;
   onPass?: () => void;
   onSuperLike?: () => void;
+  onLike?: () => void;
+  onDirectMessage?: () => void;
   onOpenDetails?: () => void;
   remainingTrials?: number;
 }
@@ -32,9 +31,11 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
   profile,
   sponsoredCard,
   culturalScore = 80,
-  onLike,
+  onRewind,
   onPass,
   onSuperLike,
+  onLike,
+  onDirectMessage,
   onOpenDetails,
   remainingTrials,
 }) => {
@@ -45,38 +46,66 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const touchMovedRef = useRef<boolean>(false);
 
   // Reset photo index when profile changes
   useEffect(() => {
     setPhotoIndex(0);
     setDragOffset({ x: 0, y: 0 });
     setIsDragging(false);
+    touchMovedRef.current = false;
   }, [profile?.id, sponsoredCard?.id]);
 
-  // Handle Touch Start
+  const photos = profile?.photos && profile.photos.length > 0
+    ? profile.photos
+    : ['/images/sl_dating_aminata_1792925241536.jpg'];
+
+  // Handle Story Photo Tap: Left 1/3 = prev, Right 2/3 = next
+  const handlePhotoTap = (clientX: number) => {
+    if (!cardRef.current || photos.length <= 1) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const tapX = clientX - rect.left;
+    const isLeftThird = tapX < rect.width * 0.33;
+
+    if (isLeftThird) {
+      setPhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
+    } else {
+      setPhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
+    }
+  };
+
+  // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+    touchMovedRef.current = false;
     setIsDragging(true);
   };
 
-  // Handle Touch Move
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!dragStartRef.current) return;
     const touch = e.touches[0];
     const dx = touch.clientX - dragStartRef.current.x;
     const dy = touch.clientY - dragStartRef.current.y;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      touchMovedRef.current = true;
+    }
     setDragOffset({ x: dx, y: dy });
   };
 
-  // Handle Touch End / Gesture Trigger
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (!dragStartRef.current) return;
     const { x, y } = dragOffset;
-    setIsDragging(false);
-    dragStartRef.current = null;
+    const swipeThreshold = 95;
 
-    const swipeThreshold = 80;
+    // If minimal drag, treat as story photo tap
+    if (!touchMovedRef.current && Math.abs(x) < 10 && Math.abs(y) < 10) {
+      handlePhotoTap(dragStartRef.current.x);
+      setDragOffset({ x: 0, y: 0 });
+      setIsDragging(false);
+      dragStartRef.current = null;
+      return;
+    }
 
     if (x > swipeThreshold) {
       // Swiped Right -> Like
@@ -92,8 +121,8 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
       setTimeout(() => {
         onPass?.();
       }, 150);
-    } else if (y < -swipeThreshold && Math.abs(x) < 60) {
-      // Swiped Up -> Super Like / Padi Boost
+    } else if (y < -swipeThreshold && Math.abs(x) < 70) {
+      // Swiped Up -> Super Like
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([25, 40, 25]);
       setDragOffset({ x: 0, y: -500 });
       setTimeout(() => {
@@ -103,13 +132,15 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
       // Reset card position smoothly
       setDragOffset({ x: 0, y: 0 });
     }
+    setIsDragging(false);
+    dragStartRef.current = null;
   };
 
-  // Mouse Drag Handlers for Desktop Testers
+  // Mouse handlers for desktop testers
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only drag with primary mouse button, ignore button clicks inside
     if (e.button !== 0) return;
     dragStartRef.current = { x: e.clientX, y: e.clientY };
+    touchMovedRef.current = false;
     setIsDragging(true);
   };
 
@@ -117,15 +148,42 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
     if (!isDragging || !dragStartRef.current) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      touchMovedRef.current = true;
+    }
     setDragOffset({ x: dx, y: dy });
   };
 
-  const handleMouseUp = () => {
-    if (!isDragging) return;
-    handleTouchEnd();
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const { x, y } = dragOffset;
+    const swipeThreshold = 95;
+
+    if (!touchMovedRef.current && Math.abs(x) < 10 && Math.abs(y) < 10) {
+      handlePhotoTap(e.clientX);
+      setDragOffset({ x: 0, y: 0 });
+      setIsDragging(false);
+      dragStartRef.current = null;
+      return;
+    }
+
+    if (x > swipeThreshold) {
+      setDragOffset({ x: 500, y: y });
+      setTimeout(() => onLike?.(), 150);
+    } else if (x < -swipeThreshold) {
+      setDragOffset({ x: -500, y: y });
+      setTimeout(() => onPass?.(), 150);
+    } else if (y < -swipeThreshold && Math.abs(x) < 70) {
+      setDragOffset({ x: 0, y: -500 });
+      setTimeout(() => onSuperLike?.(), 150);
+    } else {
+      setDragOffset({ x: 0, y: 0 });
+    }
+    setIsDragging(false);
+    dragStartRef.current = null;
   };
 
-  // IF NATIVE SPONSORED PROFILE CARD
+  // SPONSORED CARD FALLBACK
   if (sponsoredCard) {
     return (
       <div
@@ -137,10 +195,10 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         style={{
-          transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.06}deg)`,
+          transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.05}deg)`,
           transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
-        className="relative w-full max-w-sm sm:max-w-md mx-auto aspect-[3/4.3] rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-amber-500/40 select-none group touch-none cursor-grab active:cursor-grabbing"
+        className="relative w-full max-w-sm sm:max-w-md mx-auto aspect-[3/4.6] rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-amber-500/40 select-none group touch-none cursor-grab active:cursor-grabbing"
       >
         <img
           src={sponsoredCard.imageUrl}
@@ -150,19 +208,17 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-black/30 pointer-events-none" />
 
-        {/* Top Sponsored Badge */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-xs font-bold shadow-lg">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Sponsored Partner</span>
+            <span>Featured Partner</span>
           </div>
           <span className="text-[10px] bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-slate-300">
             {sponsoredCard.category}
           </span>
         </div>
 
-        {/* Bottom Details Overlay */}
-        <div className="absolute bottom-20 left-4 right-4 text-white z-10 pointer-events-auto">
+        <div className="absolute bottom-24 left-5 right-5 text-white z-10 pointer-events-auto">
           <h2 className="text-2xl font-black text-white drop-shadow-md mb-0.5">
             {sponsoredCard.brandName}
           </h2>
@@ -183,21 +239,20 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
           </button>
         </div>
 
-        {/* Action Controls to Dismiss or Like Sponsor */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-4 z-20">
+        <div className="absolute bottom-5 left-4 right-4 flex items-center justify-center gap-4 z-20">
           <button
             onClick={onPass}
-            className="w-12 h-12 rounded-full bg-slate-900/90 hover:bg-rose-500 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center shadow-lg transition-all"
-            title="Next profile"
+            className="w-13 h-13 rounded-full bg-[#26262b] hover:bg-rose-600 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center shadow-lg transition-all"
+            title="Pass"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
           <button
             onClick={onLike}
-            className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-xl transition-all"
-            title="Explore sponsor"
+            className="w-13 h-13 rounded-full bg-[#26262b] hover:bg-rose-500 text-rose-500 hover:text-white border border-slate-700/80 flex items-center justify-center shadow-xl transition-all"
+            title="Like"
           >
-            <Heart className="w-5 h-5 fill-current" />
+            <Heart className="w-6 h-6 fill-current" />
           </button>
         </div>
       </div>
@@ -206,37 +261,17 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
 
   if (!profile) return null;
 
-  const photos = profile.photos && profile.photos.length > 0 ? profile.photos : ['/images/sl_dating_aminata_1792925241536.jpg'];
-
-  const prevPhoto = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPhotoIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
-  };
-
-  const nextPhoto = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPhotoIndex((prev) => (prev < photos.length - 1 ? prev + 1 : 0));
-  };
-
-  const getGoalBadge = (goal: string) => {
-    switch (goal) {
-      case 'friendship':
-        return 'Looking for Friends / Padi';
-      case 'short-term':
-        return 'Short-term Dating';
-      case 'marriage':
-        return 'Marriage Minded';
-      case 'casual':
-        return 'Casual / Hangout';
-      default:
-        return 'Long-term Love';
-    }
-  };
-
-  // Stamp opacities
+  // Stamp visual feedback opacities
   const likeOpacity = Math.min(1, Math.max(0, (dragOffset.x - 20) / 70));
   const passOpacity = Math.min(1, Math.max(0, (-dragOffset.x - 20) / 70));
   const superLikeOpacity = Math.min(1, Math.max(0, (-dragOffset.y - 20) / 70));
+
+  const intentionLabel = profile.looking_for || (
+    profile.relationshipGoal === 'long-term' ? 'Long-term partner' :
+    profile.relationshipGoal === 'casual' ? 'Casual dating' :
+    profile.relationshipGoal === 'friendship' ? 'Friends first' :
+    profile.relationshipGoal === 'marriage' ? 'Long-term partner' : 'Friends first'
+  );
 
   return (
     <div
@@ -248,25 +283,25 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       style={{
-        transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.06}deg)`,
+        transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0) rotate(${dragOffset.x * 0.05}deg)`,
         transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className="relative w-full max-w-sm sm:max-w-md mx-auto aspect-[3/4.3] rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-slate-800 select-none group touch-none cursor-grab active:cursor-grabbing"
+      className="relative w-full max-w-sm sm:max-w-md mx-auto aspect-[3/4.6] rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-slate-800 select-none group touch-none cursor-grab active:cursor-grabbing"
     >
-      {/* Background Image */}
+      {/* Background Photo */}
       <img
         src={photos[photoIndex]}
         alt={profile.name}
         referrerPolicy="no-referrer"
         draggable={false}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none"
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102 pointer-events-none"
       />
 
       {/* Dynamic Gesture Stamps */}
       {/* LIKE Stamp (Right Swipe) */}
       <div
         style={{ opacity: likeOpacity }}
-        className="absolute top-12 left-6 z-30 pointer-events-none border-4 border-emerald-400 text-emerald-400 px-4 py-1.5 rounded-2xl font-black text-2xl uppercase tracking-widest -rotate-12 bg-emerald-950/70 backdrop-blur-sm shadow-2xl flex items-center gap-2"
+        className="absolute top-12 left-6 z-30 pointer-events-none border-4 border-rose-500 text-rose-400 px-4 py-1.5 rounded-2xl font-black text-2xl uppercase tracking-widest -rotate-12 bg-rose-950/70 backdrop-blur-sm shadow-2xl flex items-center gap-2"
       >
         <Heart className="w-6 h-6 fill-current" />
         <span>LIKE</span>
@@ -275,178 +310,187 @@ export const DiscoveryCard: React.FC<DiscoveryCardProps> = ({
       {/* PASS Stamp (Left Swipe) */}
       <div
         style={{ opacity: passOpacity }}
-        className="absolute top-12 right-6 z-30 pointer-events-none border-4 border-rose-500 text-rose-500 px-4 py-1.5 rounded-2xl font-black text-2xl uppercase tracking-widest rotate-12 bg-rose-950/70 backdrop-blur-sm shadow-2xl flex items-center gap-2"
+        className="absolute top-12 right-6 z-30 pointer-events-none border-4 border-slate-400 text-slate-300 px-4 py-1.5 rounded-2xl font-black text-2xl uppercase tracking-widest rotate-12 bg-slate-950/80 backdrop-blur-sm shadow-2xl flex items-center gap-2"
       >
         <X className="w-6 h-6" />
         <span>PASS</span>
       </div>
 
-      {/* SUPER LIKE / PADI BOOST Stamp (Up Swipe) */}
+      {/* SUPER LIKE Stamp (Up Swipe) */}
       <div
         style={{ opacity: superLikeOpacity }}
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 z-30 pointer-events-none border-4 border-amber-400 text-amber-300 px-5 py-2 rounded-2xl font-black text-xl uppercase tracking-wider bg-slate-950/80 backdrop-blur-sm shadow-2xl flex items-center gap-2 whitespace-nowrap"
+        className="absolute top-1/3 left-1/2 -translate-x-1/2 z-30 pointer-events-none border-4 border-sky-400 text-sky-300 px-5 py-2 rounded-2xl font-black text-xl uppercase tracking-wider bg-slate-950/85 backdrop-blur-sm shadow-2xl flex items-center gap-2 whitespace-nowrap"
       >
-        <Star className="w-5 h-5 fill-current text-amber-400" />
-        <span>PADI BOOST</span>
+        <Star className="w-5 h-5 fill-current text-sky-400" />
+        <span>SUPER LIKE</span>
       </div>
 
-      {/* Gradient Scrim for Legibility */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-black/30 pointer-events-none" />
+      {/* Deep Romantic Dark Overlay Scrim for Perfect Typography Contrast */}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-black/35 pointer-events-none" />
 
-      {/* Multi-Photo Indicators Bar (Up to 10 dots/dashes) */}
-      {photos.length > 1 && (
-        <div className="absolute top-2.5 left-4 right-4 z-20 flex gap-1 items-center">
+      {/* Multi-Photo Dashed Progress Bar at Top */}
+      {photos.length > 0 && (
+        <div className="absolute top-3 left-3 right-3 z-30 flex gap-1.5 items-center pointer-events-none">
           {photos.map((_, idx) => (
             <div
               key={idx}
-              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                idx === photoIndex ? 'bg-white shadow' : 'bg-white/30'
+              className={`h-1 flex-1 rounded-full transition-all duration-200 ${
+                idx === photoIndex
+                  ? 'bg-white shadow-[0_0_6px_rgba(255,255,255,0.85)]'
+                  : idx < photoIndex
+                  ? 'bg-white/70'
+                  : 'bg-white/25'
               }`}
             />
           ))}
         </div>
       )}
 
-      {/* Prev / Next Photo Tap Zones */}
-      {photos.length > 1 && (
-        <>
-          <button
-            onClick={prevPhoto}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-            aria-label="Previous photo"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={nextPhoto}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-            aria-label="Next photo"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </>
-      )}
-
-      {/* Top Bar on Card: Verified Tag & Cultural Score */}
+      {/* Top Bar on Card: Verified Tag & Match Affinity */}
       <div className="absolute top-6 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
         <div className="flex items-center gap-2">
           {profile.isVerified && (
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 text-white backdrop-blur-md shadow-lg text-xs font-semibold">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/90 text-white backdrop-blur-md shadow-lg text-[11px] font-semibold">
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Photo-Verified</span>
+              <span>Verified</span>
             </div>
           )}
 
           {profile.isSpotlight && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500 text-slate-950 text-xs font-bold shadow-md">
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[11px] font-bold shadow-md">
               <Sparkles className="w-3 h-3" />
               <span>Spotlight</span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-black/60 text-emerald-300 backdrop-blur-md border border-emerald-500/30 text-xs font-bold">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/60 text-rose-300 backdrop-blur-md border border-rose-500/30 text-[11px] font-bold">
+          <Sparkles className="w-3 h-3 text-rose-400" />
           <span>{culturalScore}% Match</span>
         </div>
       </div>
 
-      {/* Profile Details Content Overlay */}
-      <div className="absolute bottom-20 left-4 right-4 text-white z-10 pointer-events-auto">
-        <div className="flex items-baseline gap-2 mb-1">
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight drop-shadow-md">
+      {/* Bottom Overlay Gradient with Strict 3-Line Text Specification */}
+      <div className="absolute bottom-22 left-5 right-5 text-white z-10 pointer-events-auto">
+        {/* Line 1: Name and Age with Verification Badge */}
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <h2 className="text-3xl font-extrabold tracking-tight drop-shadow-md text-white">
             {profile.name}
           </h2>
-          <span className="text-xl sm:text-2xl font-light text-slate-300">{profile.age}</span>
+          <span className="text-2xl font-light text-slate-200">{profile.age}</span>
+          {profile.isVerified && (
+            <span className="p-0.5 rounded-full bg-emerald-500 text-white shadow-sm" title="Verified Profile">
+              <ShieldCheck className="w-4 h-4" />
+            </span>
+          )}
+          {profile.username && (
+            <span className="text-xs text-rose-300/90 font-mono font-medium drop-shadow ml-1">
+              @{profile.username}
+            </span>
+          )}
         </div>
 
-        {/* Location & District */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300 font-medium mb-1.5">
+        {/* Line 2: Search icon with 'Looking for' label */}
+        <div className="flex items-center gap-1.5 text-xs text-slate-300/90 font-medium mb-0.5">
+          <Search className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+          <span className="tracking-wide">Looking for</span>
+        </div>
+
+        {/* Line 3: Relationship Intention in Bold Text */}
+        <div className="text-base font-bold text-white tracking-tight drop-shadow-sm mb-2">
+          {intentionLabel}
+        </div>
+
+        {/* Location & District pill */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300 font-medium mb-1">
           <div className="flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
             <span>{profile.district || profile.locationCity}</span>
           </div>
           <span className="text-slate-500">·</span>
-          <span className="px-2 py-0.5 rounded-md bg-emerald-950/60 border border-emerald-500/30 text-[11px] text-emerald-300">
-            {getGoalBadge(profile.relationshipGoal)}
-          </span>
+          <span>{profile.culturalHeritage.favoriteDish}</span>
         </div>
-
-        {/* Religion & Occupation & Football badges */}
-        <div className="flex flex-wrap items-center gap-2 text-xs mb-2">
-          {profile.religion && (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 backdrop-blur-md text-amber-300 text-[11px]">
-              <BookOpen className="w-3 h-3" />
-              <span>{profile.religion}</span>
-            </div>
-          )}
-          {profile.schoolOrUniversity && (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 backdrop-blur-md text-cyan-300 text-[11px]">
-              <GraduationCap className="w-3 h-3" />
-              <span>{profile.schoolOrUniversity.split('(')[0]}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Sierra Leone Cultural Anchors */}
-        <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-slate-200">
-            <Utensils className="w-3 h-3 text-amber-300" />
-            <span>{profile.culturalHeritage.favoriteDish}</span>
-          </div>
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-slate-200">
-            <Languages className="w-3 h-3 text-emerald-300" />
-            <span>{profile.culturalHeritage.dialects.slice(0, 2).join(', ')}</span>
-          </div>
-        </div>
-
-        {/* Bio Snippet */}
-        <p className="text-xs text-slate-200 line-clamp-2 drop-shadow leading-relaxed mb-1">
-          {profile.bio}
-        </p>
 
         <div className="flex items-center justify-between mt-1">
           <button
             onClick={onOpenDetails}
-            className="text-[11px] text-emerald-400 font-semibold hover:underline flex items-center gap-1"
+            className="text-[11px] text-rose-300 hover:text-white font-semibold flex items-center gap-1 transition-colors"
           >
-            <Info className="w-3 h-3" /> View Full Profile & {photos.length} Photos
+            <Info className="w-3 h-3" /> View Bio & {photos.length} Photos
           </button>
           {remainingTrials !== undefined && (
             <span className="text-[10px] text-slate-400">
-              {remainingTrials} trials remaining today
+              {remainingTrials} free trials left
             </span>
           )}
         </div>
       </div>
 
-      {/* Bottom Floating Action Controls */}
-      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-4 z-20">
+      {/* Floating Action Bar (Exact 5 Circular Buttons Matching Layout) */}
+      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2.5 sm:gap-3.5 z-20">
+        {/* 1. Undo / Rewind (Gray, circular arrow) */}
         <button
-          onClick={onPass}
-          className="w-13 h-13 rounded-full bg-slate-900/90 hover:bg-rose-500 text-slate-300 hover:text-white border border-slate-700/80 hover:border-rose-400 flex items-center justify-center shadow-lg active:scale-95 transition-all"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRewind?.();
+          }}
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#26262b] hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-700/80 flex items-center justify-center shadow-lg active:scale-92 transition-all"
+          title="Undo / Rewind"
+          aria-label="Undo last swipe"
+        >
+          <RotateCcw className="w-5 h-5" />
+        </button>
+
+        {/* 2. Pass (Dark gray with white 'X') */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPass?.();
+          }}
+          className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#26262b] hover:bg-rose-600/90 text-slate-200 hover:text-white border border-slate-700/80 flex items-center justify-center shadow-xl active:scale-92 transition-all"
           title="Pass profile (or swipe left)"
           aria-label="Pass profile"
         >
-          <X className="w-6 h-6" />
+          <X className="w-7 h-7" />
         </button>
 
+        {/* 3. Super Like (Dark gray with blue/white star) */}
         <button
-          onClick={onSuperLike}
-          className="w-11 h-11 rounded-full bg-slate-900/90 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/40 hover:border-amber-400 flex items-center justify-center shadow-lg active:scale-95 transition-all"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSuperLike?.();
+          }}
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#26262b] hover:bg-sky-500 text-sky-400 hover:text-white border border-slate-700/80 flex items-center justify-center shadow-lg active:scale-92 transition-all"
           title="Super Like / Padi Boost (or swipe up)"
           aria-label="Super Like"
         >
           <Star className="w-5 h-5 fill-current" />
         </button>
 
+        {/* 4. Like (Dark gray with bright red/rose heart) */}
         <button
-          onClick={onLike}
-          className="w-13 h-13 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-xl shadow-emerald-950/50 active:scale-95 transition-all"
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike?.();
+          }}
+          className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#26262b] hover:bg-rose-600 text-rose-500 hover:text-white border border-slate-700/80 flex items-center justify-center shadow-xl active:scale-92 transition-all"
           title="Like profile (or swipe right)"
           aria-label="Like profile"
         >
-          <Heart className="w-6 h-6 fill-current" />
+          <Heart className="w-7 h-7 fill-current" />
+        </button>
+
+        {/* 5. Direct Message (Dark gray with paper plane icon) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDirectMessage?.();
+          }}
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#26262b] hover:bg-emerald-500 text-emerald-400 hover:text-white border border-slate-700/80 flex items-center justify-center shadow-lg active:scale-92 transition-all"
+          title="Direct Message / Quick Intro"
+          aria-label="Direct Message"
+        >
+          <Send className="w-5 h-5" />
         </button>
       </div>
     </div>
